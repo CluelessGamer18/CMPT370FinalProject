@@ -112,13 +112,25 @@ async function main() {
 
         out vec4 fragColor;
         void main() {
+            vec3 normal = normalize(oNormal);
+            vec3 lightDirection = normalize(mainLight.position - oFragPosition);
+            vec3 V = normalize(oCameraPosition - oFragPosition);
+
+            vec3 ambient = ambientVal * mainLight.colour;
+
+            float diff = max(dot(lightDirection, normal), 0.0);
+            vec3 diffuse = diffuseVal * diff * mainLight.colour;
+
+            vec3 H = normalize(V + lightDirection);
+            float spec = max(pow(dot(H, normal), nVal), 0.0);
+            vec3 specular = specularVal * mainLight.colour * spec;
 
             vec3 textureColour = vec3(1.0, 1.0, 1.0);
             if (samplerExists == 1) {
                 textureColour = texture(uTexture, oUV).rgb;
             } 
 
-            fragColor = vec4((diffuseVal + ambientVal + specularVal) * textureColour, materialAlpha);
+            fragColor = vec4((diffuse + ambient + specular) * textureColour, materialAlpha);
         }
         `;
 

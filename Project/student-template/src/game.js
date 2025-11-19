@@ -84,6 +84,7 @@ class Game {
 
 
     // example - setting up a key press event to move an object in the scene
+    let mouseLock = true;
     document.addEventListener("keypress", (e) => {
       e.preventDefault();
 
@@ -111,9 +112,30 @@ class Game {
           // this.cube.translate(vec3.fromValues(0, 0.5, 0));
           // break;
 
+        case "m":
+          if (mouseLock == false){
+            mouseLock = true;
+          } else {
+            mouseLock = false;
+          }
+
         default:
           break;
       }
+    });
+
+    let mouseX = 0;
+    let mouseY = 0;
+    let mouseSpeed = 0.005;
+
+    document.addEventListener("mousemove", (e) => {
+      e.preventDefault();
+      if (mouseLock == false) {
+        mouseX = e.movementX;
+        mouseY = e.movementY;
+        this.cube.rotate('y', mouseX * mouseSpeed);
+      }
+
     });
 
     this.customMethod(); // calling our custom method! (we could put spawning logic, collision logic etc in there ;) )
@@ -161,14 +183,14 @@ class Game {
   onUpdate(deltaTime) {
     // TODO - Here we can add game logic, like moving game objects, detecting collisions, you name it. Examples of functions can be found in sceneFunctions
     // This is a camera set to the view point of the purple cube, the offset is larger than is needed currently because it was "seeing itself" while it was rotating around
-    // let localOffset = vec3.fromValues(1.5, 0.5, 0.25);
-    // let worldOffset = vec3.create();
-    // vec3.transformMat4(worldOffset, localOffset, this.cube.model.rotation);
-    // state.camera.position = vec3.fromValues(this.cube.model.position[0] + worldOffset[0], this.cube.model.position[1] + worldOffset[1], this.cube.model.position[2] + worldOffset[2]);
-    // let rot = this.cube.model.rotation;
-    // let forward = vec3.fromValues(rot[0], rot[1], rot[2]);
-    // vec3.normalize(forward, forward);
-    // state.camera.front = forward
+    let localOffset = vec3.fromValues(1.5, 0.5, 0.25);
+    let worldOffset = vec3.create();
+    vec3.transformMat4(worldOffset, localOffset, this.cube.model.rotation);
+    state.camera.position = vec3.fromValues(this.cube.model.position[0] + worldOffset[0], this.cube.model.position[1] + worldOffset[1], this.cube.model.position[2] + worldOffset[2]);
+    let rot = this.cube.model.rotation;
+    let forward = vec3.fromValues(rot[0], rot[1], rot[2]);
+    vec3.normalize(forward, forward);
+    state.camera.front = forward
 
     // example: Rotate a single object we defined in our start method
     // this.cube1.rotate('x', deltaTime * 0.5);
