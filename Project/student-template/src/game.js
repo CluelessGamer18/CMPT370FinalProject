@@ -84,39 +84,105 @@ class Game {
 
 
     // example - setting up a key press event to move an object in the scene
-    let mouseLock = true;
+    // let firstPersonToggle = false;
+    let originalPos = vec3.create();
+    let worldMove = vec3.create();
+    let localMove = vec3.create();
+    let rotationMat3 = mat3.create();
+    let collision = false;
+    // let isJumping = false;
     document.addEventListener("keypress", (e) => {
       e.preventDefault();
 
       switch (e.key) {
-        case "a":
-          let originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
-          vec3.add(this.cube.model.position, this.cube.model.position, vec3.fromValues(0.5, 0, 0));
+        case "w":
+          originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
+          localMove = vec3.fromValues(0.5, 0.0, 0.0);
+      
+          mat3.fromMat4(rotationMat3, this.cube.model.rotation);
+          vec3.transformMat3(worldMove, localMove, rotationMat3);
+          vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
 
-          let collision = this.checkCollision(this.cube);
+          collision = this.checkCollision(this.cube);
 
           if (collision){
             this.cube.model.position = originalPos;
             console.log("Collided")
-          } else {
-            // this.cube.translate(vec3.fromValues(0.5, 0, 0));
-          }
+          } 
+          
+          break;
+        
+        case "s":
+          originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
+          localMove = vec3.fromValues(-0.5, 0.0, 0.0);
+
+          mat3.fromMat4(rotationMat3, this.cube.model.rotation);
+          vec3.transformMat3(worldMove, localMove, rotationMat3);
+          vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
+
+          collision = this.checkCollision(this.cube);
+
+          if (collision){
+            this.cube.model.position = originalPos;
+            console.log("Collided")
+          } 
+          
+          break;
+        
+        case "a":
+          originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
+          localMove = vec3.fromValues(0.0, 0.0, -0.5);
+
+          mat3.fromMat4(rotationMat3, this.cube.model.rotation);
+          vec3.transformMat3(worldMove, localMove, rotationMat3);
+          vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
+
+          collision = this.checkCollision(this.cube);
+
+          if (collision){
+            this.cube.model.position = originalPos;
+            console.log("Collided")
+          } 
           
           break;
 
         case "d":
-          this.cube.translate(vec3.fromValues(-0.5, 0, 0));
+          originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
+          localMove = vec3.fromValues(0.0, 0.0, 0.5);
+
+          mat3.fromMat4(rotationMat3, this.cube.model.rotation);
+          vec3.transformMat3(worldMove, localMove, rotationMat3);
+          vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
+
+          collision = this.checkCollision(this.cube);
+
+          if (collision){
+            this.cube.model.position = originalPos;
+            console.log("Collided")
+          } 
+          
+          break;
+
+        case " ":
+          if (!this.cube.isJumping){
+            this.cube.velocity[1] = this.cube.jumpSpeed;
+            this.cube.isJumping = true;
+          }
           break;
         
           // case " ": //Testing other key presses
           // this.cube.translate(vec3.fromValues(0, 0.5, 0));
           // break;
 
-        case "m":
-          if (mouseLock == false){
-            mouseLock = true;
+        case "m": // This sets a toggle for the first person camera angle, it also locks and hides the cursor while active to allow for smooth movement
+          if (this.cube.firstPersonToggle == false){
+            this.cube.firstPersonToggle = true;
+            document.body.requestPointerLock();
+            this.cube.material.alpha = 0.0;
           } else {
-            mouseLock = false;
+            this.cube.firstPersonToggle = false;
+            document.exitPointerLock();
+            this.cube.material.alpha = 1.0;
           }
 
         default:
@@ -124,19 +190,23 @@ class Game {
       }
     });
 
+    // This whole sequence allows for the object to rotate based on the mouse positions, this in turn allows the camera to move as it is defined in the runtime.
     let mouseX = 0;
     let mouseY = 0;
-    let mouseSpeed = 0.005;
-
+    let lastMouseY = 0;
+    let mouseSpeedY = -0.0005;
+    let mouseSpeedXZ = 0.0005;
+    let threshold = 1; // Minimum pixels that Y has to move to allow X and Z rotation
     document.addEventListener("mousemove", (e) => {
       e.preventDefault();
-      if (mouseLock == false) {
+      if (this.cube.firstPersonToggle == true) {
         mouseX = e.movementX;
         mouseY = e.movementY;
-        this.cube.rotate('y', mouseX * mouseSpeed);
+        this.cube.rotate('y', mouseX * mouseSpeedY); // This temporarily only rotates around the Y, XZ will be a problem for later.
       }
 
     });
+
 
     this.customMethod(); // calling our custom method! (we could put spawning logic, collision logic etc in there ;) )
 
@@ -182,15 +252,31 @@ class Game {
   // Runs once every frame non stop after the scene loads
   onUpdate(deltaTime) {
     // TODO - Here we can add game logic, like moving game objects, detecting collisions, you name it. Examples of functions can be found in sceneFunctions
-    // This is a camera set to the view point of the purple cube, the offset is larger than is needed currently because it was "seeing itself" while it was rotating around
-    let localOffset = vec3.fromValues(1.5, 0.5, 0.25);
-    let worldOffset = vec3.create();
-    vec3.transformMat4(worldOffset, localOffset, this.cube.model.rotation);
-    state.camera.position = vec3.fromValues(this.cube.model.position[0] + worldOffset[0], this.cube.model.position[1] + worldOffset[1], this.cube.model.position[2] + worldOffset[2]);
-    let rot = this.cube.model.rotation;
-    let forward = vec3.fromValues(rot[0], rot[1], rot[2]);
-    vec3.normalize(forward, forward);
-    state.camera.front = forward
+    // This is a camera set to the view point of the cube, the offset is larger than is needed currently because it was "seeing itself" while it was rotating around
+    // let localOffset = vec3.fromValues(1.5, 0.5, 0.25);
+    if (this.cube.firstPersonToggle){
+      let localOffset = vec3.fromValues(0, 0.5, 0);
+      let worldOffset = vec3.create();
+      vec3.transformMat4(worldOffset, localOffset, this.cube.modelMatrix);
+      state.camera.position = vec3.fromValues(this.cube.model.position[0] + worldOffset[0], this.cube.model.position[1] + worldOffset[1], this.cube.model.position[2] + worldOffset[2]);
+      let rot = this.cube.model.rotation;
+      let forward = vec3.fromValues(rot[0], rot[1], rot[2]);
+      vec3.normalize(forward, forward);
+      state.camera.front = forward
+    };
+
+    // Velocity, gravity and Jumpspeed are set in the RenderObject.js file, these can be modified to change around some values.
+    if (this.cube.isJumping) {
+      this.cube.velocity[1] += this.cube.gravity * deltaTime;
+      this.cube.model.position[1] += this.cube.velocity[1] * deltaTime;
+
+      // This is a temp way of checking if the object is colliding with the floor (before we get collisions running)
+      if (this.cube.model.position[1] <= 1) {
+        this.cube.model.position[1] = 1;
+        this.cube.velocity[1] = 0;
+        this.cube.isJumping = false;
+      }
+    };
 
     // example: Rotate a single object we defined in our start method
     // this.cube1.rotate('x', deltaTime * 0.5);

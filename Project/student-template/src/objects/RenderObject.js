@@ -32,6 +32,11 @@ class RenderObject {
 
     this.modelMatrix = mat4.create();
     this.lightingShader = this.lightingShader.bind(this);
+    this.isJumping = false;
+    this.firstPersonToggle = false;
+    this.velocity = vec3.create();
+    this.gravity = -9.8;
+    this.jumpSpeed = 5;
   }
 
   rotate(axis, angle) {
