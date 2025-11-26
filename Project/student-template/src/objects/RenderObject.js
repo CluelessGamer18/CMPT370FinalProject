@@ -32,11 +32,19 @@ class RenderObject {
 
     this.modelMatrix = mat4.create();
     this.lightingShader = this.lightingShader.bind(this);
-    this.isJumping = false;
-    this.firstPersonToggle = false;
-    this.velocity = vec3.create();
-    this.gravity = -9.8;
-    this.jumpSpeed = 5;
+    this.isJumping = false; // Toggle to check if the space bar has been pressed
+    this.firstPersonToggle = false; // Toggle to check if the camera is supposed to be in first person or not
+    this.velocity = vec3.create(); // An empty velocity value that can be changed elsewhere
+    this.gravity = -9.8; // Gravity
+    this.jumpSpeed = 20; // The speed in which the y value goes up when jumping
+    this.pressedKeys = {}; // A list to hold what keys are pressed at the same time
+    this.smoothing = 0.1; // A smoothing value for rotations with mouse
+    this.mouseSpeedY = -0.0008; // Set mouse speed values (can be adjusted to whatever is desired)
+    this.mouseSpeedX = 0.0008;
+    this.accumulatedX = 0; // A value used for mouse following
+    this.accumulatedY = 0; // A value used for mouse following
+    this.xAngle = 0;
+    this.yAngle = 0;
   }
 
   rotate(axis, angle) {
