@@ -36,7 +36,7 @@ class RenderObject {
     this.firstPersonToggle = false; // Toggle to check if the camera is supposed to be in first person or not
     this.velocity = vec3.create(); // An empty velocity value that can be changed elsewhere
     this.gravity = -9.8; // Gravity
-    this.jumpSpeed = 20; // The speed in which the y value goes up when jumping
+    this.jumpSpeed = 10; // The speed in which the y value goes up when jumping
     this.pressedKeys = {}; // A list to hold what keys are pressed at the same time
     this.smoothing = 0.1; // A smoothing value for rotations with mouse
     this.mouseSpeedY = -0.0008; // Set mouse speed values (can be adjusted to whatever is desired)

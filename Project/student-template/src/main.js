@@ -113,6 +113,7 @@ async function main() {
         out vec4 fragColor;
         void main() {
             vec3 normal = normalize(oNormal);
+
             vec3 lightDirection = normalize(mainLight.position - oFragPosition);
             vec3 V = normalize(oCameraPosition - oFragPosition);
 
@@ -131,6 +132,7 @@ async function main() {
             } 
 
             fragColor = vec4((diffuse + ambient + specular) * textureColour, materialAlpha);
+            // fragColor = vec4(normal, 1.0);
         }
         `;
 
