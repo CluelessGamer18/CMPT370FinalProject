@@ -22,6 +22,69 @@ class Game {
     this.collidableObjects.push(object);
   }
 
+  // Create a box collider to detect hitboxes possibly
+  // Using a halfsize for each coordinate (xyz) allows for simpler math and faster compution times (no division during actual computions)
+  createBoxCollider(object, width, height, depth, onCollide = null) {
+    object.collider = {
+      type: "BOX",
+      halfsize: [
+        width / 2,
+        height / 2,
+        depth / 2
+      ],
+      onCollide: onCollide ? onCollide: (otherObject) => {
+        console.log(`Collided with ${otherObject.name}`);
+      }
+    };
+    this.collidableObjects.push(object);
+  }
+
+  // Collision logic for two box colliders colliding
+  checkBoxvsBox(objA, objB){
+    const aPos = objA.model.position;
+    const bPos = objB.model.position;
+
+    const aHalfsize = objA.collider.halfsize;
+    const bHalfsize = objB.collider.halfsize;
+
+    return (
+      Math.abs(aPos[0] - bPos[0]) < (aHalfsize[0] + bHalfsize[0]) && Math.abs(aPos[1] - bPos[1]) < (aHalfsize[1] + bHalfsize[1]) && Math.abs(aPos[2] - bPos[2]) < (aHalfsize[2] + bHalfsize[2])
+    );
+  }
+
+  // Collision logic for two sphere colliders colliding
+  checkSpherevsSphere(objA, objB) {
+    let dx = objB.model.position[0] - objA.model.position[0];
+    let dy = objB.model.position[1] - objA.model.position[1];
+    let dz = objB.model.position[2] - objA.model.position[2];
+    let distSquared = (dx*dx) + (dy*dy) + (dz*dz);
+    let radSquare = objA.collider.radius + objB.collider.radius;
+
+    return distSquared < (radSquare * radSquare);
+  }
+
+  // Collision logic for a sphere colliding with a box and vice versa
+  checkSpherevsBox(sphereObj, boxObj){
+    const sPos = sphereObj.model.position;
+    const bPos = boxObj.model.position;
+    const bHalf = boxObj.collider.halfsize;
+    const rad = sphereObj.collider.radius;
+
+    // Find the closest spot on the box to the sphere's center
+    let closestX = Math.max(bPos[0] - bHalf[0], Math.min(sPos[0], bPos[0] + bHalf[0]));
+    let closestY = Math.max(bPos[1] - bHalf[1], Math.min(sPos[1], bPos[1] + bHalf[1]));
+    let closestZ = Math.max(bPos[2] - bHalf[2], Math.min(sPos[2], bPos[2] + bHalf[2]));
+
+    // Distance from the sphere's center to the closest point on the box
+    let dx = closestX - sPos[0];
+    let dy = closestY - sPos[1];
+    let dz = closestZ - sPos[2];
+
+    let distanceSq = (dx*dx) + (dy*dy) + (dz*dz);
+
+    return distanceSq < (rad * rad);
+  }
+
   // example - function to check if an object is colliding with collidable objects
   checkCollision(object) {
     let collided = false;
@@ -31,26 +94,38 @@ class Game {
       if (object.name === otherObject.name) {
         return;
       }
-      // Getting all the information together regarding the collision points
-      let xDistance = otherObject.model.position[0] - object.model.position[0];
-      let yDistance = otherObject.model.position[1] - object.model.position[1];
-      let zDistance = otherObject.model.position[2] - object.model.position[2];
-      let totalDistance = (xDistance * xDistance) + (yDistance * yDistance) + (zDistance * zDistance);
-      let obj1Radii = object.collider.radius * object.collider.radius;
-      let obj2Radii = otherObject.collider.radius * otherObject.collider.radius;
 
-      // If they collide (ie. closer than the radii combined) then run the onCollide commands.
-      if (totalDistance < (obj1Radii + obj2Radii)) {
-        collided = true;
-        object.collider.onCollide(otherObject);
-        
+      // Check for collisions between two sphere colliders
+      if  (object.collider.type === "SPHERE" && otherObject.collider.type === "SPHERE"){
+        if (this.checkSpherevsSphere(object, otherObject)){
+          collided = true;
+          object.collider.onCollide(otherObject);
+        }
       }
-      // do a check to see if we have collided, if we have we can call object.onCollide(otherObject) which will
-      // call the onCollide we define for that specific object. This way we can handle collisions identically for all
-      // objects that can collide but they can do different things (ie. player colliding vs projectile colliding)
-      // use the modeling transformation for object and otherObject to transform position into current location
-      // ie: 
-      // if (collide){ object.collider.onCollide(otherObject) } // fires what we defined our object should do when it collides
+
+      // Check for collisions between to box colliders
+      if (object.collider.type === "BOX" && otherObject.collider.type === "BOX"){
+        if (this.checkBoxvsBox(object, otherObject)){
+          collided = true;
+          object.collider.onCollide(otherObject);
+        }
+      }
+
+      // Check for collisions between a sphere and a box collider
+      if (object.collider.type === "SPHERE" && otherObject.collider.type === "BOX"){
+        if (this.checkSpherevsBox(object, otherObject)){
+          collided = true;
+          object.collider.onCollide(otherObject);
+        }
+      }
+
+      // Check for collision between a sphere and a box collider
+      if (object.collider.type === "BOX" && otherObject.collider.type === "SPHERE") {
+        if (this.checkSpherevsBox(otherObject, object)){
+          collided = true;
+          object.collider.onCollide(otherObject);
+        }
+      }
       
     });
 
@@ -68,24 +143,21 @@ class Game {
       e.preventDefault();
     }, false);
 
-    // example - set an object in onStart before starting our render loop!
+    // Set the objects
     this.cube = getObject(this.state, "Cube1");
     this.cube1 = getObject(this.state, "Cube2");
-    this.cube2 = getObject(this.state, "Cube3");
-    const otherCube = getObject(this.state, "cube2"); // we wont save this as instance var since we dont plan on using it in update
+    this.plane = getObject(this.state, "Ground");
 
-    // example - create sphere colliders on our two objects as an example, we give 2 objects colliders otherwise
-    // no collision can happen
-    // this.createSphereCollider(this.cube, 0.5, (otherObject) => {
-    //   console.log(`This is a custom collision of ${otherObject.name}`)
-    // });
-    // this.createSphereCollider(this.cube1, 0.5);
-    // this.createSphereCollider(this.cube2, 0.5); //Testing multiple collisions
-    // example - setting up a key press event to move an object in the scene
+    // Create the colliders
+    this.createSphereCollider(this.cube, 0.5);
+    this.createBoxCollider(this.plane, this.plane.model.scale[0], this.plane.model.scale[1], this.plane.model.scale[2]);
+    this.createBoxCollider(this.cube1, this.cube1.model.scale[0], this.cube1.model.scale[1], this.cube1.model.scale[2]);
 
     // Listen for key presses and add them to a list to keep track of for another function below
     document.addEventListener("keydown", (e) => {
       this.cube.pressedKeys[e.key] = true;
+      console.log(this.cube.collider.radius);
+      console.log(this.plane.collider.halfsize);
       
     });
 
@@ -95,99 +167,16 @@ class Game {
       
     });
 
-    // These are outdated Comments
-    // *let firstPersonToggle = false;
-    // let originalPos = vec3.create();
-    // let worldMove = vec3.create();
-    // let localMove = vec3.create();
-    // let rotationMat3 = mat3.create();
-    // let collision = false;
-    // let isJumping = false;*
     document.addEventListener("keypress", (e) => {
       e.preventDefault();
 
       switch (e.key) {
-        // These movements are outdated, see below for smoother option
-        // ************************************************************************************************
-        // case "w":
-        //   originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
-        //   localMove = vec3.fromValues(0.5, 0.0, 0.0);
-      
-        //   mat3.fromMat4(rotationMat3, this.cube.model.rotation);
-        //   vec3.transformMat3(worldMove, localMove, rotationMat3);
-        //   vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
-
-        //   collision = this.checkCollision(this.cube);
-
-        //   if (collision){
-        //     this.cube.model.position = originalPos;
-        //     console.log("Collided")
-        //   } 
-          
-        //   break;
-        
-        // case "s":
-        //   originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
-        //   localMove = vec3.fromValues(-0.5, 0.0, 0.0);
-
-        //   mat3.fromMat4(rotationMat3, this.cube.model.rotation);
-        //   vec3.transformMat3(worldMove, localMove, rotationMat3);
-        //   vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
-
-        //   collision = this.checkCollision(this.cube);
-
-        //   if (collision){
-        //     this.cube.model.position = originalPos;
-        //     console.log("Collided")
-        //   } 
-          
-        //   break;
-        
-        // case "a":
-        //   originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
-        //   localMove = vec3.fromValues(0.0, 0.0, -0.5);
-
-        //   mat3.fromMat4(rotationMat3, this.cube.model.rotation);
-        //   vec3.transformMat3(worldMove, localMove, rotationMat3);
-        //   vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
-
-        //   collision = this.checkCollision(this.cube);
-
-        //   if (collision){
-        //     this.cube.model.position = originalPos;
-        //     console.log("Collided")
-        //   } 
-          
-        //   break;
-
-        // case "d":
-        //   originalPos = vec3.clone(this.cube.model.position); //Keep original value in case of collision
-        //   localMove = vec3.fromValues(0.0, 0.0, 0.5);
-
-        //   mat3.fromMat4(rotationMat3, this.cube.model.rotation);
-        //   vec3.transformMat3(worldMove, localMove, rotationMat3);
-        //   vec3.add(this.cube.model.position, this.cube.model.position, worldMove);
-
-        //   collision = this.checkCollision(this.cube);
-
-        //   if (collision){
-        //     this.cube.model.position = originalPos;
-        //     console.log("Collided")
-        //   } 
-          
-        //   break;
-        // ************************************************************************************************
-
         case " ":
           if (!this.cube.isJumping){
             this.cube.velocity[1] = this.cube.jumpSpeed;
             this.cube.isJumping = true;
           }
           break;
-        
-          // case " ": //Testing other key presses
-          // this.cube.translate(vec3.fromValues(0, 0.5, 0));
-          // break;
 
         case "m": // This sets a toggle for the first person camera angle, it also locks and hides the cursor while active to allow for smooth movement
           if (this.cube.firstPersonToggle == false){
@@ -199,6 +188,7 @@ class Game {
             document.exitPointerLock();
             this.cube.material.alpha = 1.0;
           }
+          console.log(this.cube1.model.position);
 
         default:
           break;
@@ -336,8 +326,13 @@ class Game {
       this.cube.model.position[1] += this.cube.velocity[1] * deltaTime; // Adjust the cube's position based on the gravity
 
       // This is a temp way of checking if the object is colliding with the floor (before we get collisions running)
-      if (this.cube.model.position[1] <= 1) {
-        this.cube.model.position[1] = 1;
+      // if (this.cube.model.position[1] <= 1) {
+      //   this.cube.model.position[1] = 1;
+      //   this.cube.velocity[1] = 0;
+      //   this.cube.isJumping = false;
+      // }
+      if (this.checkCollision(this.cube)){
+        this.cube.model.position[1] = this.cube.model.position[1] + 1;
         this.cube.velocity[1] = 0;
         this.cube.isJumping = false;
       }
