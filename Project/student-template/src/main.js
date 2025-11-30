@@ -61,7 +61,7 @@ async function main() {
         uniform mat4 uProjectionMatrix;
         uniform mat4 uViewMatrix;
         uniform mat4 uModelMatrix;
-        uniform mat4 normalMat;
+        uniform mat4 normalMatrix;
         uniform vec3 uCameraPosition;
 
         out vec3 oNormal;
@@ -71,7 +71,8 @@ async function main() {
 
         void main() {
             // Simply use this normal so no error is thrown
-            oNormal = aNormal;
+            // oNormal = aNormal;
+            oNormal = mat3(normalMatrix) * aNormal;
 
             // Postion of the fragment in world space
             gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aPosition, 1.0);
@@ -100,7 +101,11 @@ async function main() {
         in vec3 oFragPosition;
         in vec3 oCameraPosition;
 
-        uniform PointLight mainLight;
+        uniform PointLight pointLights[MAX_LIGHTS];
+        uniform vec3 uLightPositions[MAX_LIGHTS];
+        uniform vec3 uLightColours[MAX_LIGHTS];
+        uniform float uLightStrengths[MAX_LIGHTS];
+        uniform int numLights;
         uniform int samplerExists;
         uniform float materialAlpha;
         uniform sampler2D uTexture;
@@ -113,26 +118,41 @@ async function main() {
         out vec4 fragColor;
         void main() {
             vec3 normal = normalize(oNormal);
-
-            vec3 lightDirection = normalize(mainLight.position - oFragPosition);
             vec3 V = normalize(oCameraPosition - oFragPosition);
 
-            vec3 ambient = ambientVal * mainLight.colour;
+            // Set temporary initial colour values
+            vec3 ambient = vec3(0.0);
+            vec3 diffuse = vec3(0.0);
+            vec3 specular = vec3(0.0);
 
-            float diff = max(dot(lightDirection, normal), 0.0);
-            vec3 diffuse = diffuseVal * diff * mainLight.colour;
+            // Loop through for the number of lights that we have
+            for (int i = 0; i < MAX_LIGHTS; i++){
+                if (i >= numLights) break;
 
-            vec3 H = normalize(V + lightDirection);
-            float spec = max(pow(dot(H, normal), nVal), 0.0);
-            vec3 specular = specularVal * mainLight.colour * spec;
+                vec3 lightDir = normalize(uLightPositions[i] - oFragPosition);
+                
+                // Dont multiple ambient by the light strengths
+                ambient += ambientVal * uLightColours[i];
 
+                // Get the diffuse value
+                float diff = max(dot(normal, lightDir), 0.0);
+                diffuse += diffuseVal * diff * uLightColours[i] * uLightStrengths[i];
+
+                // Get the specular value
+                vec3 H  = normalize(V + lightDir);
+                float spec = pow(max(dot(H, normal), 0.0), nVal);
+                specular += specularVal * spec * uLightColours[i] * uLightStrengths[i];
+            }
+
+            // Get the texture colour (if it has one)
             vec3 textureColour = vec3(1.0, 1.0, 1.0);
             if (samplerExists == 1) {
                 textureColour = texture(uTexture, oUV).rgb;
             } 
 
+            // Output our final colour
             fragColor = vec4((diffuse + ambient + specular) * textureColour, materialAlpha);
-            // fragColor = vec4(normal, 1.0);
+            
         }
         `;
 
@@ -311,21 +331,31 @@ function drawScene(gl, deltaTime, state) {
       gl.uniform3fv(object.programInfo.uniformLocations.specularVal, object.material.specular);
       gl.uniform1f(object.programInfo.uniformLocations.nVal, object.material.n);
 
-      let mainLight = state.pointLights[0];
-      gl.uniform3fv(gl.getUniformLocation(object.programInfo.program, 'mainLight.position'), mainLight.position);
-      gl.uniform3fv(gl.getUniformLocation(object.programInfo.program, 'mainLight.colour'), mainLight.colour);
-      gl.uniform1f(gl.getUniformLocation(object.programInfo.program, 'mainLight.strength'), mainLight.strength);
+      
+      // Sets a maximum number of lights (the higher the number the laggier it will be so we need to use fewer lights) 
+      const maxLights = 10;
+      const positionsArray = new Float32Array(maxLights * 3); // Create an array to hold our light positions
+      const coloursArray = new Float32Array(maxLights * 3); // Create an array to hold our lights colours
+      const strengthsArray = new Float32Array(maxLights); // create an array to hold our light strengths
 
-      gl.uniform1i(object.programInfo.uniformLocations.numLights, state.numLights);
-      if (state.pointLights.length > 0) {
-        for (let i = 0; i < state.pointLights.length; i++) {
-          gl.uniform3fv(gl.getUniformLocation(object.programInfo.program, 'pointLights[' + i + '].position'), state.pointLights[i].position);
-          gl.uniform3fv(gl.getUniformLocation(object.programInfo.program, 'pointLights[' + i + '].colour'), state.pointLights[i].colour);
-          gl.uniform1f(gl.getUniformLocation(object.programInfo.program, 'pointLights[' + i + '].strength'), state.pointLights[i].strength);
-          gl.uniform1f(gl.getUniformLocation(object.programInfo.program, 'pointLights[' + i + '].linear'), state.pointLights[i].linear);
-          gl.uniform1f(gl.getUniformLocation(object.programInfo.program, 'pointLights[' + i + '].quadratic'), state.pointLights[i].quadratic);
+      // For the amount of lights we have determined
+      for (let i = 0; i < maxLights; i++){
+        if (i < state.pointLights.length){ // If they have a value (they exist)
+          const light = state.pointLights[i]; // Get what light this is
+          positionsArray.set(light.position, i * 3); // Add to the positions array where the light is
+          coloursArray.set(light.colour, i * 3); // Add to the colours array what colour it is
+          strengthsArray[i] = light.strength; // Add to the strengths array what light strength it has
+        } else { // If they do not have a value (they do not exist)
+          positionsArray.set([0, 0, 0], i * 3); // Add blank value
+          coloursArray.set([0, 0, 0], i * 3); // Add blank value
+          strengthsArray[i] = 0; // Add blank value
         }
       }
+      // Add the lightPositions, lightColours and lightStrengths to the shaders
+      gl.uniform3fv(object.programInfo.uniformLocations.lightPositions, positionsArray);
+      gl.uniform3fv(object.programInfo.uniformLocations.lightColours, coloursArray);
+      gl.uniform1fv(object.programInfo.uniformLocations.lightStrengths, strengthsArray);
+      gl.uniform1i(object.programInfo.uniformLocations.numLights, state.pointLights.length);
 
       gl.uniform1f(object.programInfo.uniformLocations.alpha, object.material.alpha);
       if (object.material.alpha < 1.0) {

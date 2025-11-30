@@ -345,7 +345,7 @@ class Game {
     };
 
 
-    let falling = this.cube.isJumping  || !this.checkCollision(this.cube);
+    let falling = this.cube.isJumping  || !this.checkCollision(this.cube); // Add another OR branch, testing for if the object is excalty the offset value (below) away from the ground
 
     // Modified jumping / falling code
     // This code is not perfect, because of the above flag it causes it to always be "falling" after adjusting the collision box height to be above the ground
