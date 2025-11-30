@@ -119,7 +119,7 @@ class Game {
     // Set the objects
     this.cube = getObject(this.state, "Cube1"); // Character object
     this.cube1 = getObject(this.state, "Cube2"); 
-    this.cube2 = getObject(this.state, "Cube3");
+    this.cube2 = getObject(this.state, "Platform 1");
     this.plane = getObject(this.state, "Ground"); // Ground
 
     // Create the colliders

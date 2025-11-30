@@ -258,15 +258,32 @@ function drawScene(gl, deltaTime, state) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // sort objects by nearness to camera
+  // let sorted = state.objects.sort((a, b) => {
+  //   let aCentroidFour = vec4.fromValues(a.centroid[0], a.centroid[1], a.centroid[2], 1.0);
+  //   vec4.transformMat4(aCentroidFour, aCentroidFour, a.modelMatrix);
+
+  //   let bCentroidFour = vec4.fromValues(b.centroid[0], b.centroid[1], b.centroid[2], 1.0);
+  //   vec4.transformMat4(bCentroidFour, bCentroidFour, b.modelMatrix);
+
+  //   return vec3.distance(state.camera.position, vec3.fromValues(aCentroidFour[0], aCentroidFour[1], aCentroidFour[2]))
+  //     >= vec3.distance(state.camera.position, vec3.fromValues(bCentroidFour[0], bCentroidFour[1], bCentroidFour[2])) ? -1 : 1;
+  // });
+
   let sorted = state.objects.sort((a, b) => {
-    let aCentroidFour = vec4.fromValues(a.centroid[0], a.centroid[1], a.centroid[2], 1.0);
-    vec4.transformMat4(aCentroidFour, aCentroidFour, a.modelMatrix);
 
-    let bCentroidFour = vec4.fromValues(b.centroid[0], b.centroid[1], b.centroid[2], 1.0);
-    vec4.transformMat4(bCentroidFour, bCentroidFour, b.modelMatrix);
+    const cam = state.camera.position;
 
-    return vec3.distance(state.camera.position, vec3.fromValues(aCentroidFour[0], aCentroidFour[1], aCentroidFour[2]))
-      >= vec3.distance(state.camera.position, vec3.fromValues(bCentroidFour[0], bCentroidFour[1], bCentroidFour[2])) ? -1 : 1;
+    const dxA = a.model.position[0] - cam[0];
+    const dyA = a.model.position[1] - cam[1];
+    const dzA = a.model.position[2] - cam[2];
+    const distA = dxA*dxA + dyA*dyA + dzA*dzA;
+
+    const dxB = b.model.position[0] - cam[0];
+    const dyB = b.model.position[1] - cam[1];
+    const dzB = b.model.position[2] - cam[2];
+    const distB = dxB*dxB + dyB*dyB + dzB*dzB;
+
+    return distB - distA;
   });
 
   // iterate over each object and render them
