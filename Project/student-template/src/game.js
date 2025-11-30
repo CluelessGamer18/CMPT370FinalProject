@@ -94,41 +94,10 @@ class Game {
     let collided = false;
     // loop over all the other collidable objects 
     this.collidableObjects.forEach(otherObject => {
-      // probably don't need to collide with ourselves
-      if (object.name === otherObject.name) {
-        return;
-      }
-
-      // Check for collisions between two sphere colliders
-      if  (object.collider.type === "SPHERE" && otherObject.collider.type === "SPHERE"){
-        if (this.checkSpherevsSphere(object, otherObject)){
-          collided = true;
-          object.collider.onCollide(otherObject);
-        }
-      }
-
-      // Check for collisions between to box colliders
-      if (object.collider.type === "BOX" && otherObject.collider.type === "BOX"){
-        if (this.checkBoxvsBox(object, otherObject)){
-          collided = true;
-          object.collider.onCollide(otherObject);
-        }
-      }
-
-      // Check for collisions between a sphere and a box collider
-      if (object.collider.type === "SPHERE" && otherObject.collider.type === "BOX"){
-        if (this.checkSpherevsBox(object, otherObject)){
-          collided = true;
-          object.collider.onCollide(otherObject);
-        }
-      }
-
-      // Check for collision between a sphere and a box collider
-      if (object.collider.type === "BOX" && otherObject.collider.type === "SPHERE") {
-        if (this.checkSpherevsBox(otherObject, object)){
-          collided = true; 
-          object.collider.onCollide(otherObject);
-        }
+      // Use this helper function
+      if (this.checkCollisionBetween(object, otherObject)){
+        collided = true;
+        object.collider.onCollide(otherObject);
       }
       
     });
@@ -150,6 +119,7 @@ class Game {
     // Set the objects
     this.cube = getObject(this.state, "Cube1"); // Character object
     this.cube1 = getObject(this.state, "Cube2"); 
+    this.cube2 = getObject(this.state, "Cube3");
     this.plane = getObject(this.state, "Ground"); // Ground
 
     // Create the colliders
@@ -157,6 +127,7 @@ class Game {
     this.createBoxCollider(this.cube, this.cube.model.scale[0]*0.5, this.cube.model.scale[1]*0.5, this.cube.model.scale[2]*0.5); // Multiple by 0.5 to properly set scale
     this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
     this.createBoxCollider(this.cube1, this.cube1.model.scale[0]*0.5, this.cube1.model.scale[1]*0.5, this.cube1.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
+    this.createBoxCollider(this.cube2, this.cube2.model.scale[0]*0.5, this.cube2.model.scale[1]*0.5, this.cube2.model.scale[2]*0.5);
 
     // Listen for key presses and add them to a list to keep track of for another function below
     document.addEventListener("keydown", (e) => {
@@ -176,9 +147,11 @@ class Game {
       switch (e.key) {
         // Test if the spacebar is pressed
         case " ":
-          if (!this.cube.isJumping){
-            this.cube.velocity[1] = this.cube.jumpSpeed; // Assign a preset jumpspeed to the object
-            this.cube.isJumping = true; // Set the isJumping flag to true
+          if (this.cube.firstPersonToggle){
+            if (!this.cube.isJumping){
+              this.cube.velocity[1] = this.cube.jumpSpeed; // Assign a preset jumpspeed to the object
+              this.cube.isJumping = true; // Set the isJumping flag to true
+            }
           }
           break;
 
@@ -266,31 +239,34 @@ class Game {
         const originalZ = this.cube.model.position[2];
         this.cube.model.position[2] += worldMove[2];
         if (this.checkCollision(this.cube)) this.cube.model.position[2] = originalZ;
-      } else {
-        const localMove = vec3.fromValues(moveX, moveY, moveZ);
+      } else { // Use WASD, Shift, Control, and the left and right arrow keys to move the camera 
+        const localMove = vec3.fromValues(moveX, moveY, moveZ); // Get what directions we need to move
         vec3.normalize(localMove, localMove);
 
-        const speed = 0.25;
+        const speed = 0.25; // Set a constant speed to move in all directions
         vec3.scale(localMove, localMove, speed);
 
-        const forward = state.camera.front;
+        const forward = state.camera.front; // Get which direction the camera is facing
         vec3.normalize(forward, forward);
 
-        const right = vec3.fromValues(forward[2], 0, -forward[0]);
+        const right = vec3.fromValues(forward[2], 0, -forward[0]); // Get what direction is to the right
 
-        const worldMoveCamera = vec3.create();
-        vec3.scale(worldMoveCamera, forward, localMove[0]);
+        const worldMoveCamera = vec3.create(); // Create the worldMovement vector
+        vec3.scale(worldMoveCamera, forward, localMove[0]); // Adjust by the directions that we are moving
         const rightMove = vec3.create();
-        vec3.scale(rightMove, right, -localMove[2]);
-        const upMove = vec3.fromValues(0, localMove[1], 0);
+        vec3.scale(rightMove, right, -localMove[2]); // Scale the direction 
+        const upMove = vec3.fromValues(0, localMove[1], 0); // Include up and down
 
+        // Add XYZ coords to the world camera to tell us which direction it is moving
         vec3.add(worldMoveCamera, worldMoveCamera, rightMove);
         vec3.add(worldMoveCamera, worldMoveCamera, upMove);
 
+        // Adjust camera by the world values
         state.camera.position[0] += worldMoveCamera[0];
         state.camera.position[1] += worldMoveCamera[1];
         state.camera.position[2] += worldMoveCamera[2];
 
+        // Use the arrow keys to update the rotation values for the cam to allow for horizontal rotations
         if (keys['ArrowRight']){
           const rotationMat = mat4.create();
           mat4.rotateY(rotationMat, rotationMat, (-rotationSpeed*Math.PI / 180)); // Rotate around Y
@@ -319,14 +295,36 @@ class Game {
       }
     }
   // Function to get the height of a collided with object
-  getCollisionHeight(object){
+  getCollisionHeight(objA){
     for (let obj of this.collidableObjects){
-      if (this.checkCollision(object)){
-        return obj.model.position[1];
+      if (this.checkCollisionBetween(objA, obj)){
+        return obj.model.position[1] + obj.collider.halfsize[1]; // return the sum of the collided objects height and its current position at y
       }
     }
-
     return null;
+  }
+  
+  // Helper function for determining what collider type is hitting each other, returns true or false depending on if the objects collide
+  checkCollisionBetween(objA, objB){
+    if (objA.name === objB.name) return false;
+
+    if (objA.collider.type === "SPHERE" && objB.collider.type === "SPHERE"){
+      return this.checkSpherevsSphere(objA, objB);
+    }
+
+    if (objA.collider.type === "BOX" && objB.collider.type === "BOX"){
+      return this.checkBoxvsBox(objA, objB);
+    }
+
+    if (objA.collider.type === "SPHERE" && objB.collider.type === "BOX"){
+      return this.checkSpherevsBox(objA, objB);
+    }
+
+    if (objA.collider.type === "BOX" && objB.collider.type === "SPHERE"){
+      return this.checkSpherevsBox(objA, objB);
+    }
+
+    return false;
   }
 
   // Runs once every frame non stop after the scene loads
@@ -344,8 +342,17 @@ class Game {
       state.camera.front = forward // Set that value to direct the camera's front in the same direction
     };
 
+    // Create a check to see if the object is at the specified adjustment height (top stop from constantly 'bouncing')
+    const collisionHeight = this.getCollisionHeight(this.cube);
+    const tolerance = 0.01;
+    let atGround = false;
 
-    let falling = this.cube.isJumping  || !this.checkCollision(this.cube); // Add another OR branch, testing for if the object is excalty the offset value (below) away from the ground
+    if (collisionHeight != null){
+      const expectedY = collisionHeight + this.cube.collider.halfsize[1];
+      atGround = Math.abs(this.cube.model.position[1] - expectedY) < tolerance;
+    }
+
+    let falling = this.cube.isJumping  || (!this.checkCollision(this.cube) && !atGround); // Add another OR branch, testing for if the object is excalty the offset value (below) away from the ground
 
     // Modified jumping / falling code
     // This code is not perfect, because of the above flag it causes it to always be "falling" after adjusting the collision box height to be above the ground
@@ -372,7 +379,7 @@ class Game {
           this.cube.isJumping = false;
           falling = false; // This doesn't do anything to my knowledge because it gets reset above every frame and will always be true
         }
-      }
+      } 
     } 
 
 
