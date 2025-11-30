@@ -15,8 +15,26 @@ class Game {
     object.collider = {
       type: "SPHERE",
       radius: radius,
-      onCollide: onCollide ? onCollide : (otherObject) => {
-        console.log(`Collided with ${otherObject.name}`);
+      onCollide: onCollide ? onCollide: (otherObject) => {
+        // Check to see if the collided object is our NPC, if it is have him display a nice message
+        if (otherObject.name === "NPC"){
+          const msg = document.getElementById("collisionMessage");
+          msg.innerText = "Hello Player!";
+          msg.style.display = "block";
+
+          setTimeout(() =>{
+            msg.style.display = "none";
+          }, 3000);
+
+          setTimeout(() =>{
+            msg.innerText = "Good luck on your journey!";
+            msg.style.display = "block";
+          }, 3000);
+
+          setTimeout(() =>{
+            msg.style.display = "none";
+          }, 5000);
+        }
       }
     };
     this.collidableObjects.push(object);
@@ -33,7 +51,25 @@ class Game {
         depth / 2
       ],
       onCollide: onCollide ? onCollide: (otherObject) => {
-        console.log(`Collided with ${otherObject.name}`);
+        // Check to see if the collided object is our NPC, if it is have him display a nice message
+        if (otherObject.name === "NPC"){
+          const msg = document.getElementById("collisionMessage");
+          msg.innerText = "Hello Player!";
+          msg.style.display = "block";
+
+          setTimeout(() =>{
+            msg.style.display = "none";
+          }, 3000);
+
+          setTimeout(() =>{
+            msg.innerText = "Good luck on your journey!";
+            msg.style.display = "block";
+          }, 3000);
+
+          setTimeout(() =>{
+            msg.style.display = "none";
+          }, 5000);
+        }
       }
     };
     this.collidableObjects.push(object);
@@ -117,17 +153,19 @@ class Game {
     }, false);
 
     // Set the objects
-    this.cube = getObject(this.state, "Cube1"); // Character object
+    this.cube = getObject(this.state, "Player"); // Character object
     this.cube1 = getObject(this.state, "Cube2"); 
     this.cube2 = getObject(this.state, "Platform 1");
     this.plane = getObject(this.state, "Ground"); // Ground
+    this.custom = getObject(this.state, "NPC");
 
     // Create the colliders
     // this.createSphereCollider(this.cube, 0.5);
-    this.createBoxCollider(this.cube, this.cube.model.scale[0]*0.5, this.cube.model.scale[1]*0.5, this.cube.model.scale[2]*0.5); // Multiple by 0.5 to properly set scale
+    this.createBoxCollider(this.cube, this.cube.model.scale[0], this.cube.model.scale[1], this.cube.model.scale[2]); // Multiple by 0.5 to properly set scale
     this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
     this.createBoxCollider(this.cube1, this.cube1.model.scale[0]*0.5, this.cube1.model.scale[1]*0.5, this.cube1.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
     this.createBoxCollider(this.cube2, this.cube2.model.scale[0]*0.5, this.cube2.model.scale[1]*0.5, this.cube2.model.scale[2]*0.5);
+    this.createBoxCollider(this.custom, this.custom.model.scale[0], this.custom.model.scale[1], this.custom.model.scale[1]);
 
     // Listen for key presses and add them to a list to keep track of for another function below
     document.addEventListener("keydown", (e) => {
@@ -352,7 +390,7 @@ class Game {
       atGround = Math.abs(this.cube.model.position[1] - expectedY) < tolerance;
     }
 
-    let falling = this.cube.isJumping  || (!this.checkCollision(this.cube) && !atGround); // Add another OR branch, testing for if the object is excalty the offset value (below) away from the ground
+    let falling = this.cube.isJumping  || (!this.checkCollision(this.cube) && !atGround); 
 
     // Modified jumping / falling code
     // This code is not perfect, because of the above flag it causes it to always be "falling" after adjusting the collision box height to be above the ground
@@ -382,29 +420,18 @@ class Game {
       } 
     } 
 
+    // Move NPC along Z axis between 2 certain values
+    this.custom.model.position[2] += this.custom.direction * 0.5 * deltaTime;
 
+    // If it hits a max value swap its direction
+    if (this.custom.model.position[2] >= 1){
+      this.custom.direction = -1;
+    }
 
-    // example: Rotate a single object we defined in our start method
-    // this.cube1.rotate('x', deltaTime * 0.5);
-    // this.cube2.rotate('y', deltaTime * 0.5);
-    // this.cube.rotate('y', deltaTime * 0.5);
-
-    // example: Rotate all objects in the scene marked with a flag
-    // this.state.objects.forEach((object) => {
-    //   if (object.constantRotate) {
-    //     object.rotate('y', deltaTime * 0.5);
-    //   }
-    // });
-
-    // simulate a collision between the first spawned object and 'cube' 
-    // if (this.spawnedObjects[0].collidable) {
-    //     this.spawnedObjects[0].onCollide(this.cube);
-    // }
-
-    // example: Rotate all the 'spawned' objects in the scene
-    // this.spawnedObjects.forEach((object) => {
-    //     object.rotate('y', deltaTime * 0.5);
-    // });
+    // If it hits a min value swap its direction
+    if (this.custom.model.position[2] <= -1){
+      this.custom.direction = 1;
+    }
 
     this.updateMovement(this.cube.pressedKeys); // Call movement for our object using the pressedKeys list that has been added to
     this.updateFirstPerson();

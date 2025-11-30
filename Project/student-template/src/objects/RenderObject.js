@@ -45,6 +45,7 @@ class RenderObject {
     this.accumulatedY = 0; // A value used for mouse following
     this.xAngle = 0;
     this.yAngle = 0;
+    this.direction = 1;
   }
 
   rotate(axis, angle) {
