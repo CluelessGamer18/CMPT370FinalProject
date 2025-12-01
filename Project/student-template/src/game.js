@@ -155,8 +155,18 @@ class Game {
 
     // Set the objects
     this.cube = getObject(this.state, "Player"); // Character object
-    this.cube1 = getObject(this.state, "Cube2"); 
-    this.cube2 = getObject(this.state, "Platform 1");
+    // this.cube1 = getObject(this.state, "Cube2"); 
+    this.platform1 = getObject(this.state, "Platform001");
+    this.platform2 = getObject(this.state, "Platform002");
+    this.platform3 = getObject(this.state, "Platform003");
+    this.platform4 = getObject(this.state, "Platform004");
+    this.platform5 = getObject(this.state, "Platform005");
+    this.platform6 = getObject(this.state, "Platform006");
+    this.platform7 = getObject(this.state, "Platform007");
+    this.platform8 = getObject(this.state, "Platform008");
+    this.platform9 = getObject(this.state, "Platform009");
+    this.platform10 = getObject(this.state, "Platform010");
+    this.platform11 = getObject(this.state, "Platform011");
     this.plane = getObject(this.state, "Ground"); // Ground
     this.custom = getObject(this.state, "NPC");
 
@@ -164,8 +174,18 @@ class Game {
     // this.createSphereCollider(this.cube, 0.5);
     this.createBoxCollider(this.cube, this.cube.model.scale[0], this.cube.model.scale[1], this.cube.model.scale[2]); // Multiple by 0.5 to properly set scale
     this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
-    this.createBoxCollider(this.cube1, this.cube1.model.scale[0]*0.5, this.cube1.model.scale[1]*0.5, this.cube1.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
-    this.createBoxCollider(this.cube2, this.cube2.model.scale[0]*0.5, this.cube2.model.scale[1]*0.5, this.cube2.model.scale[2]*0.5);
+    // this.createBoxCollider(this.cube1, this.cube1.model.scale[0]*0.5, this.cube1.model.scale[1]*0.5, this.cube1.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
+    this.createBoxCollider(this.platform1, this.platform1.model.scale[0]*0.5, this.platform1.model.scale[1]*0.5, this.platform1.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform2, this.platform2.model.scale[0]*0.5, this.platform2.model.scale[1]*0.5, this.platform2.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform3, this.platform3.model.scale[0]*0.5, this.platform3.model.scale[1]*0.5, this.platform3.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform4, this.platform4.model.scale[0]*0.5, this.platform4.model.scale[1]*0.5, this.platform4.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform5, this.platform5.model.scale[0]*0.5, this.platform5.model.scale[1]*0.5, this.platform5.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform6, this.platform6.model.scale[0]*0.5, this.platform6.model.scale[1]*0.5, this.platform6.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform7, this.platform7.model.scale[0]*0.5, this.platform7.model.scale[1]*0.5, this.platform7.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform8, this.platform8.model.scale[0]*0.5, this.platform8.model.scale[1]*0.5, this.platform8.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform9, this.platform9.model.scale[0]*0.5, this.platform9.model.scale[1]*0.5, this.platform9.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform10, this.platform10.model.scale[0]*0.5, this.platform10.model.scale[1]*0.5, this.platform10.model.scale[2]*0.5);
+    this.createBoxCollider(this.platform11, this.platform11.model.scale[0]*0.5, this.platform11.model.scale[1]*0.5, this.platform11.model.scale[2]*0.5);
     this.createBoxCollider(this.custom, this.custom.model.scale[0], this.custom.model.scale[1], this.custom.model.scale[1]);
 
     // Listen for key presses and add them to a list to keep track of for another function below
@@ -259,7 +279,7 @@ class Game {
         const localMove = vec3.fromValues(moveX, 0, moveZ); // This is our temporary movement value, this will be used later
         vec3.normalize(localMove, localMove); // Normalize the direction values
 
-        const speed = 0.25; // Set a scaleable speed value to set movement to be the same speed
+        const speed = 0.2; // Set a scaleable speed value to set movement to be the same speed
         vec3.scale(localMove, localMove, speed); // Scale the movement vector by the speed
         const rotationMat3 = mat3.create();
         const worldMove = vec3.create();
@@ -329,10 +349,11 @@ class Game {
 
         this.cube.rotate('y', rotationY);
 
-        this.cube.accumulatedX *= (1 - this.cube.smoothing);
+        this.cube.accumulatedX *= (1 - this.cube.smoothing*0.8);
         this.cube.accumulatedY *= (1 - this.cube.smoothing);
       }
     }
+
   // Function to get the height of a collided with object
   getCollisionHeight(objA){
     for (let obj of this.collidableObjects){
@@ -366,11 +387,9 @@ class Game {
     return false;
   }
 
-  // Runs once every frame non stop after the scene loads
-  onUpdate(deltaTime) {
-    // TODO - Here we can add game logic, like moving game objects, detecting collisions, you name it. Examples of functions can be found in sceneFunctions
+  updateCamera(){
     if (this.cube.firstPersonToggle){
-      let localOffset = vec3.fromValues(0, 0.5, 0); // Set an offset to position the POV inside the cube
+      let localOffset = vec3.fromValues(0, 0.25, 0); // Set an offset to position the POV inside the cube
       let worldOffset = vec3.create(); // Initialize a value
       vec3.transformMat4(worldOffset, localOffset, this.cube.modelMatrix); // Add to the above value the transformation of local offset and the cube's modelMatrix
       // Set new camera position based on the above values
@@ -381,22 +400,29 @@ class Game {
       state.camera.front = forward // Set that value to direct the camera's front in the same direction
     };
 
-  // Apply gravity if not grounded or if jumping
-  if (!this.cube.isGrounded || this.cube.isJumping) {
-    this.cube.velocity[1] += this.cube.gravity * deltaTime;
   }
 
-  // Move cube
-  this.cube.model.position[1] += this.cube.velocity[1] * deltaTime;
+  // Runs once every frame non stop after the scene loads
+  onUpdate(deltaTime) {
+    // TODO - Here we can add game logic, like moving game objects, detecting collisions, you name it. Examples of functions can be found in sceneFunctions
+    this.updateCamera();
 
-  // Resolve collisions AFTER movement
-  const hitHeight = this.getCollisionHeight(this.cube);
+    // Apply gravity if not grounded or if jumping
+    if (!this.cube.isGrounded || this.cube.isJumping) {
+      this.cube.velocity[1] += this.cube.gravity * deltaTime;
+    }
 
-  if (hitHeight != null) {
-    const expectedY = hitHeight + this.cube.collider.halfsize[1];
+    // Move cube
+    this.cube.model.position[1] += this.cube.velocity[1] * deltaTime;
+
+    // Resolve collisions AFTER movement
+    const hitHeight = this.getCollisionHeight(this.cube);
+
+    if (hitHeight != null) {
+      const expectedY = hitHeight + this.cube.collider.halfsize[1];
 
     // Only grounded if cube is AT or BELOW the surface
-    if (this.cube.model.position[1] <= expectedY) {
+      if (this.cube.model.position[1] <= expectedY) {
 
         // LAND
         this.cube.model.position[1] = expectedY;
@@ -404,15 +430,15 @@ class Game {
         this.cube.isJumping = false;
         this.cube.isGrounded = true;
 
-    } else {
+      } else {
         // Up in the air (jumping, falling, etc)
         this.cube.isGrounded = false;
-    }
+      }
 
-  } else {
-    // No ground under us at all
-    this.cube.isGrounded = false;
-  }
+    } else {
+      // No ground under us at all
+      this.cube.isGrounded = false;
+    }
 
 
     // Move NPC along Z axis between 2 certain values

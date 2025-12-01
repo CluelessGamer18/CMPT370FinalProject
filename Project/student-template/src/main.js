@@ -350,7 +350,7 @@ function drawScene(gl, deltaTime, state) {
 
       
       // Sets a maximum number of lights (the higher the number the laggier it will be so we need to use fewer lights) 
-      const maxLights = 10;
+      const maxLights = 5;
       const positionsArray = new Float32Array(maxLights * 3); // Create an array to hold our light positions
       const coloursArray = new Float32Array(maxLights * 3); // Create an array to hold our lights colours
       const strengthsArray = new Float32Array(maxLights); // create an array to hold our light strengths
