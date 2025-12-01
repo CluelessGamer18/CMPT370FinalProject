@@ -3,6 +3,15 @@ class Game {
     this.state = state;
     this.spawnedObjects = [];
     this.collidableObjects = [];
+
+    // Set these values here so we don't have to create them every time we do anything (this is what solved a lot of our lag problems)
+    this.tempLocalOffset = vec3.fromValues(0, 0.25, 0);
+    this.tempWorldOffset = vec3.create();
+    this.tempForward = vec3.create();
+    this.tempRotationMat3 = mat3.create();
+    this.templocalMove = vec3.create();
+    this.tempWorldMove = vec3.create();
+    this.tempOriginalPosition = vec3.create();
   }
 
   // example - we can add our own custom method to our game and call it using 'this.customMethod()'
@@ -128,20 +137,25 @@ class Game {
 
   // example - function to check if an object is colliding with collidable objects
   checkCollision(object) {
-    let collided = false;
-    // loop over all the other collidable objects 
-    this.collidableObjects.forEach(otherObject => {
-      // Use this helper function
-      if (this.checkCollisionBetween(object, otherObject)){
-        collided = true;
+    const MAX_COLLISION_DISTANCE = 5.0;
+    for (let i = 0; i < this.collidableObjects.length; i++) {
+      const otherObject = this.collidableObjects[i];
+
+      if (object.name === otherObject.name) continue;
+
+      // Distance check to skip far objects
+      const dx = otherObject.model.position[0] - object.model.position[0];
+      const dy = otherObject.model.position[1] - object.model.position[1];
+      const dz = otherObject.model.position[2] - object.model.position[2];
+      const distSq = dx*dx + dy*dy + dz*dz;
+      if (distSq > MAX_COLLISION_DISTANCE * MAX_COLLISION_DISTANCE) continue;
+
+      if (this.checkCollisionBetween(object, otherObject)) {
         object.collider.onCollide(otherObject);
+        return true; // Early exit on first collision found
       }
-      
-    });
-
-    return collided;
-
-    
+    }
+    return false; // No collision found
   }
 
   // runs once on startup after the scene loads the objects
@@ -155,7 +169,7 @@ class Game {
 
     // Set the objects
     this.cube = getObject(this.state, "Player"); // Character object
-    // this.cube1 = getObject(this.state, "Cube2"); 
+    // Platforms
     this.platform1 = getObject(this.state, "Platform001");
     this.platform2 = getObject(this.state, "Platform002");
     this.platform3 = getObject(this.state, "Platform003");
@@ -168,13 +182,12 @@ class Game {
     this.platform10 = getObject(this.state, "Platform010");
     this.platform11 = getObject(this.state, "Platform011");
     this.plane = getObject(this.state, "Ground"); // Ground
+    // NPCs
     this.custom = getObject(this.state, "NPC");
 
     // Create the colliders
-    // this.createSphereCollider(this.cube, 0.5);
-    this.createBoxCollider(this.cube, this.cube.model.scale[0], this.cube.model.scale[1], this.cube.model.scale[2]); // Multiple by 0.5 to properly set scale
-    this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
-    // this.createBoxCollider(this.cube1, this.cube1.model.scale[0]*0.5, this.cube1.model.scale[1]*0.5, this.cube1.model.scale[2]*0.5); // Multiply by 0.5 to properly set the scale (objects are 0.5x0.5 normally)
+    this.createBoxCollider(this.cube, this.cube.model.scale[0], this.cube.model.scale[1], this.cube.model.scale[2]); 
+    this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); 
     this.createBoxCollider(this.platform1, this.platform1.model.scale[0]*0.5, this.platform1.model.scale[1]*0.5, this.platform1.model.scale[2]*0.5);
     this.createBoxCollider(this.platform2, this.platform2.model.scale[0]*0.5, this.platform2.model.scale[1]*0.5, this.platform2.model.scale[2]*0.5);
     this.createBoxCollider(this.platform3, this.platform3.model.scale[0]*0.5, this.platform3.model.scale[1]*0.5, this.platform3.model.scale[2]*0.5);
@@ -195,7 +208,6 @@ class Game {
 
     // Once user lets go of those keys remove them from the list to stop using them
     document.addEventListener("keyup", (e) =>{
-      // delete this.cube.pressedKeys[e.key];
       this.cube.pressedKeys[e.key] = false;
       
     });
@@ -272,32 +284,34 @@ class Game {
       if (keys['Control']) moveY -= 1;
 
       // No movement detected, return out of the function because we don't need to modify the values
-      // if (moveX === 0 && moveZ === 0 && moveY === 0) return;
+      if (moveX === 0 && moveZ === 0 && moveY === 0) return;
 
       if (this.cube.firstPersonToggle){
-        // const originalPos = vec3.clone(this.cube.model.position); // Save original position in case we collide with something
-        const localMove = vec3.fromValues(moveX, 0, moveZ); // This is our temporary movement value, this will be used later
-        vec3.normalize(localMove, localMove); // Normalize the direction values
+        // This is our temporary movement value, we will use it later
+        this.templocalMove[0] = moveX;
+        this.templocalMove[1] = 0;
+        this.templocalMove[2] = moveZ;
+
+        vec3.normalize(this.templocalMove, this.templocalMove); // Normalize direction Values
 
         const speed = 0.2; // Set a scaleable speed value to set movement to be the same speed
-        vec3.scale(localMove, localMove, speed); // Scale the movement vector by the speed
-        const rotationMat3 = mat3.create();
-        const worldMove = vec3.create();
+        // Scale the movement vector by the speed
+        vec3.scale(this.templocalMove, this.templocalMove, speed);
 
-        mat3.fromMat4(rotationMat3, this.cube.model.rotation); // Get the cube's rotation matrix, but only the rotations (we dont need the translations / scale)
-        vec3.transformMat3(worldMove, localMove, rotationMat3); // Set the worldMove value based on the localMove and the rotation matrix
+        // Get the cube's rotation matrix, but only the rotations (we dont need the translations / scale)
+        mat3.fromMat4(this.tempRotationMat3, this.cube.model.rotation);
+        // Set the worldMove value based on the localMove and the rotation matrix
+        vec3.transformMat3(this.tempWorldMove, this.templocalMove, this.tempRotationMat3);
 
-        // vec3.add(this.cube.model.position, this.cube.model.position, worldMove); // Attempt to move to the new location
+        // Copy the current position before moving in case of collision
+        vec3.copy(this.tempOriginalPosition, this.cube.model.position);
+        vec3.add(this.cube.model.position, this.cube.model.position, this.tempWorldMove);
 
-        // Move X
-        const originalX = this.cube.model.position[0];
-        this.cube.model.position[0] += worldMove[0];
-        if (this.checkCollision(this.cube)) this.cube.model.position[0] = originalX;
+        // If there is a collision go back to the previous value
+        if(this.checkCollision(this.cube)){
+          vec3.copy(this.cube.model.position, this.tempOriginalPosition);
+        }
 
-        // Move Z
-        const originalZ = this.cube.model.position[2];
-        this.cube.model.position[2] += worldMove[2];
-        if (this.checkCollision(this.cube)) this.cube.model.position[2] = originalZ;
       } else { // Use WASD, Shift, Control, and the left and right arrow keys to move the camera 
         const localMove = vec3.fromValues(moveX, moveY, moveZ); // Get what directions we need to move
         vec3.normalize(localMove, localMove);
@@ -345,18 +359,28 @@ class Game {
     // Uses the set values given to the cube to rotate around the Y axis, giving us horizontal vision (Vertical may be too hard for the scope right now)
     updateFirstPerson() {
       if (this.cube.firstPersonToggle) {
-        let rotationY = this.cube.accumulatedX * this.cube.mouseSpeedY * this.cube.smoothing;
+        let rotationY = this.cube.accumulatedX * this.cube.mouseSpeedY
+        const smoothedY = rotationY * this.cube.smoothing;
 
-        this.cube.rotate('y', rotationY);
+        this.cube.rotate('y', smoothedY);
 
-        this.cube.accumulatedX *= (1 - this.cube.smoothing*0.8);
-        this.cube.accumulatedY *= (1 - this.cube.smoothing);
+        this.cube.accumulatedX = 0;
       }
     }
 
   // Function to get the height of a collided with object
   getCollisionHeight(objA){
+    const MAX_COLLISION_DISTANCE = 7.5;
     for (let obj of this.collidableObjects){
+      if (objA.name === obj.name) continue;
+
+      // Quick distance check to skip far objects
+      const dx = obj.model.position[0] - objA.model.position[0];
+      const dy = obj.model.position[1] - objA.model.position[1];
+      const dz = obj.model.position[2] - objA.model.position[2];
+      const distSq = dx*dx + dy*dy + dz*dz;
+      if (distSq > MAX_COLLISION_DISTANCE * MAX_COLLISION_DISTANCE) continue;
+
       if (this.checkCollisionBetween(objA, obj)){
         return obj.model.position[1] + obj.collider.halfsize[1]; // return the sum of the collided objects height and its current position at y
       }
@@ -387,26 +411,28 @@ class Game {
     return false;
   }
 
+
   updateCamera(){
     if (this.cube.firstPersonToggle){
-      let localOffset = vec3.fromValues(0, 0.25, 0); // Set an offset to position the POV inside the cube
-      let worldOffset = vec3.create(); // Initialize a value
-      vec3.transformMat4(worldOffset, localOffset, this.cube.modelMatrix); // Add to the above value the transformation of local offset and the cube's modelMatrix
+      vec3.transformMat4(this.tempWorldOffset, this.tempLocalOffset, this.cube.modelMatrix); // Add the created localOffset and the modleMatrix together to get the world offset
       // Set new camera position based on the above values
-      state.camera.position = vec3.fromValues(this.cube.model.position[0] + worldOffset[0], this.cube.model.position[1] + worldOffset[1], this.cube.model.position[2] + worldOffset[2]);
+      const pos = this.cube.model.position;
+      state.camera.position[0] = pos[0] + this.tempWorldOffset[0];
+      state.camera.position[1] = pos[1] + this.tempWorldOffset[1];
+      state.camera.position[2] = pos[2] + this.tempWorldOffset[2];
       let rot = this.cube.model.rotation; // Get the rotation matrix from the cube
-      let forward = vec3.fromValues(rot[0], rot[1], rot[2]); // Create a forwards vector to determine which way the cube is facing
-      vec3.normalize(forward, forward); // Normalize that value
-      state.camera.front = forward // Set that value to direct the camera's front in the same direction
+      // Create a forwards vector to determine which way the cube is facing
+      this.tempForward[0] = rot[0];
+      this.tempForward[1] = rot[1];
+      this.tempForward[2] = rot[2];
+      vec3.normalize(this.tempForward, this.tempForward); // Normalize that value
+      state.camera.front = this.tempForward // Set that value to direct the camera's front in the same direction
     };
 
   }
 
   // Runs once every frame non stop after the scene loads
   onUpdate(deltaTime) {
-    // TODO - Here we can add game logic, like moving game objects, detecting collisions, you name it. Examples of functions can be found in sceneFunctions
-    this.updateCamera();
-
     // Apply gravity if not grounded or if jumping
     if (!this.cube.isGrounded || this.cube.isJumping) {
       this.cube.velocity[1] += this.cube.gravity * deltaTime;
@@ -456,6 +482,8 @@ class Game {
 
     this.updateMovement(this.cube.pressedKeys); // Call movement for our object using the pressedKeys list that has been added to
     this.updateFirstPerson();
+    this.updateCamera();
+    
     this.checkCollision(this.cube); // Call collision checks on our object
   }
 }
