@@ -33,6 +33,7 @@ class RenderObject {
     this.modelMatrix = mat4.create();
     this.lightingShader = this.lightingShader.bind(this);
     this.isJumping = false; // Toggle to check if the space bar has been pressed
+    this.isGrounded = true;
     this.firstPersonToggle = false; // Toggle to check if the camera is supposed to be in first person or not
     this.velocity = vec3.create(); // An empty velocity value that can be changed elsewhere
     this.gravity = -9.8; // Gravity

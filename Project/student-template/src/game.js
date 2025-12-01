@@ -72,6 +72,7 @@ class Game {
         }
       }
     };
+    
     this.collidableObjects.push(object);
   }
 
@@ -380,45 +381,39 @@ class Game {
       state.camera.front = forward // Set that value to direct the camera's front in the same direction
     };
 
-    // Create a check to see if the object is at the specified adjustment height (top stop from constantly 'bouncing')
-    const collisionHeight = this.getCollisionHeight(this.cube);
-    const tolerance = 0.01;
-    let atGround = false;
+  // Apply gravity if not grounded or if jumping
+  if (!this.cube.isGrounded || this.cube.isJumping) {
+    this.cube.velocity[1] += this.cube.gravity * deltaTime;
+  }
 
-    if (collisionHeight != null){
-      const expectedY = collisionHeight + this.cube.collider.halfsize[1];
-      atGround = Math.abs(this.cube.model.position[1] - expectedY) < tolerance;
+  // Move cube
+  this.cube.model.position[1] += this.cube.velocity[1] * deltaTime;
+
+  // Resolve collisions AFTER movement
+  const hitHeight = this.getCollisionHeight(this.cube);
+
+  if (hitHeight != null) {
+    const expectedY = hitHeight + this.cube.collider.halfsize[1];
+
+    // Only grounded if cube is AT or BELOW the surface
+    if (this.cube.model.position[1] <= expectedY) {
+
+        // LAND
+        this.cube.model.position[1] = expectedY;
+        this.cube.velocity[1] = 0;
+        this.cube.isJumping = false;
+        this.cube.isGrounded = true;
+
+    } else {
+        // Up in the air (jumping, falling, etc)
+        this.cube.isGrounded = false;
     }
 
-    let falling = this.cube.isJumping  || (!this.checkCollision(this.cube) && !atGround); 
+  } else {
+    // No ground under us at all
+    this.cube.isGrounded = false;
+  }
 
-    // Modified jumping / falling code
-    // This code is not perfect, because of the above flag it causes it to always be "falling" after adjusting the collision box height to be above the ground
-    if (falling) {
-      // Apply gravity
-      this.cube.velocity[1] += this.cube.gravity * deltaTime;
-      this.cube.model.position[1] += this.cube.velocity[1] * deltaTime;
-
-      // Check if cube lands
-      if (this.checkCollision(this.cube)){
-
-        // Get the height of the object that our player runs into
-        const collisionHeight = this.getCollisionHeight(this.cube);
-
-        // Check to see if it has a value
-        if (collisionHeight != null){
-          // Adjust for collision, allow for character to be above the "hitbox"
-          this.cube.model.position[1] = collisionHeight + this.cube.collider.halfsize[1]; 
-
-          // Set velocity to 0
-          this.cube.velocity[1] = 0;
-
-          // Stop jumping
-          this.cube.isJumping = false;
-          falling = false; // This doesn't do anything to my knowledge because it gets reset above every frame and will always be true
-        }
-      } 
-    } 
 
     // Move NPC along Z axis between 2 certain values
     this.custom.model.position[2] += this.custom.direction * 0.5 * deltaTime;
