@@ -137,25 +137,17 @@ class Game {
 
   // example - function to check if an object is colliding with collidable objects
   checkCollision(object) {
-    const MAX_COLLISION_DISTANCE = 5.0;
-    for (let i = 0; i < this.collidableObjects.length; i++) {
-      const otherObject = this.collidableObjects[i];
-
-      if (object.name === otherObject.name) continue;
-
-      // Distance check to skip far objects
-      const dx = otherObject.model.position[0] - object.model.position[0];
-      const dy = otherObject.model.position[1] - object.model.position[1];
-      const dz = otherObject.model.position[2] - object.model.position[2];
-      const distSq = dx*dx + dy*dy + dz*dz;
-      if (distSq > MAX_COLLISION_DISTANCE * MAX_COLLISION_DISTANCE) continue;
-
-      if (this.checkCollisionBetween(object, otherObject)) {
+    let collided = false;
+    // loop over all the other collidable objects 
+    this.collidableObjects.forEach(otherObject => {
+      // Use this helper function
+      if (this.checkCollisionBetween(object, otherObject)){
+        collided = true;
         object.collider.onCollide(otherObject);
-        return true; // Early exit on first collision found
       }
-    }
-    return false; // No collision found
+      
+    });
+    return collided; // No collision found
   }
 
   // runs once on startup after the scene loads the objects
@@ -181,13 +173,26 @@ class Game {
     this.platform9 = getObject(this.state, "Platform009");
     this.platform10 = getObject(this.state, "Platform010");
     this.platform11 = getObject(this.state, "Platform011");
+    // Ground and Walls
     this.plane = getObject(this.state, "Ground"); // Ground
+    this.wall1 = getObject(this.state, "Wall 1");
+    this.wall2 = getObject(this.state, "Wall 2");
+    this.wall3 = getObject(this.state, "Wall 3");
+    this.wall4 = getObject(this.state, "Wall 4");
     // NPCs
     this.custom = getObject(this.state, "NPC");
+    this.custom1 = getObject(this.state, "Enemy");
 
     // Create the colliders
+    // Player
     this.createBoxCollider(this.cube, this.cube.model.scale[0], this.cube.model.scale[1], this.cube.model.scale[2]); 
-    this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5); 
+    // Walls and Ground
+    this.createBoxCollider(this.plane, this.plane.model.scale[0]*0.5, this.plane.model.scale[1]*0.5, this.plane.model.scale[2]*0.5);
+    this.createBoxCollider(this.wall1, this.wall1.model.scale[0]*0.5, this.wall1.model.scale[1]*0.5, this.wall1.model.scale[2]*0.5);
+    this.createBoxCollider(this.wall2, this.wall2.model.scale[0]*0.5, this.wall2.model.scale[1]*0.5, this.wall2.model.scale[2]*0.5);
+    this.createBoxCollider(this.wall3, this.wall3.model.scale[0]*0.5, this.wall3.model.scale[1]*0.5, this.wall3.model.scale[2]*0.5);
+    this.createBoxCollider(this.wall4, this.wall4.model.scale[0]*0.5, this.wall4.model.scale[1]*0.5, this.wall4.model.scale[2]*0.5);
+    // Platforms
     this.createBoxCollider(this.platform1, this.platform1.model.scale[0]*0.5, this.platform1.model.scale[1]*0.5, this.platform1.model.scale[2]*0.5);
     this.createBoxCollider(this.platform2, this.platform2.model.scale[0]*0.5, this.platform2.model.scale[1]*0.5, this.platform2.model.scale[2]*0.5);
     this.createBoxCollider(this.platform3, this.platform3.model.scale[0]*0.5, this.platform3.model.scale[1]*0.5, this.platform3.model.scale[2]*0.5);
@@ -199,7 +204,9 @@ class Game {
     this.createBoxCollider(this.platform9, this.platform9.model.scale[0]*0.5, this.platform9.model.scale[1]*0.5, this.platform9.model.scale[2]*0.5);
     this.createBoxCollider(this.platform10, this.platform10.model.scale[0]*0.5, this.platform10.model.scale[1]*0.5, this.platform10.model.scale[2]*0.5);
     this.createBoxCollider(this.platform11, this.platform11.model.scale[0]*0.5, this.platform11.model.scale[1]*0.5, this.platform11.model.scale[2]*0.5);
+    // NPCs
     this.createBoxCollider(this.custom, this.custom.model.scale[0], this.custom.model.scale[1], this.custom.model.scale[1]);
+    this.createBoxCollider(this.custom1, this.custom1.model.scale[0], this.custom1.model.scale[1], this.custom1.model.scale[1]);
 
     // Listen for key presses and add them to a list to keep track of for another function below
     document.addEventListener("keydown", (e) => {
@@ -284,7 +291,7 @@ class Game {
       if (keys['Control']) moveY -= 1;
 
       // No movement detected, return out of the function because we don't need to modify the values
-      if (moveX === 0 && moveZ === 0 && moveY === 0) return;
+      // if (moveX === 0 && moveZ === 0 && moveY === 0) return;
 
       if (this.cube.firstPersonToggle){
         // This is our temporary movement value, we will use it later
@@ -294,7 +301,7 @@ class Game {
 
         vec3.normalize(this.templocalMove, this.templocalMove); // Normalize direction Values
 
-        const speed = 0.2; // Set a scaleable speed value to set movement to be the same speed
+        const speed = 0.05; // Set a scaleable speed value to set movement to be the same speed
         // Scale the movement vector by the speed
         vec3.scale(this.templocalMove, this.templocalMove, speed);
 
@@ -316,7 +323,7 @@ class Game {
         const localMove = vec3.fromValues(moveX, moveY, moveZ); // Get what directions we need to move
         vec3.normalize(localMove, localMove);
 
-        const speed = 0.25; // Set a constant speed to move in all directions
+        const speed = 0.05; // Set a constant speed to move in all directions
         vec3.scale(localMove, localMove, speed);
 
         const forward = state.camera.front; // Get which direction the camera is facing
@@ -359,28 +366,18 @@ class Game {
     // Uses the set values given to the cube to rotate around the Y axis, giving us horizontal vision (Vertical may be too hard for the scope right now)
     updateFirstPerson() {
       if (this.cube.firstPersonToggle) {
-        let rotationY = this.cube.accumulatedX * this.cube.mouseSpeedY
-        const smoothedY = rotationY * this.cube.smoothing;
+        let rotationY = this.cube.accumulatedX * this.cube.mouseSpeedY * this.cube.smoothing;
+        // let smoothedY = rotationY * this.cube.smoothed;
 
-        this.cube.rotate('y', smoothedY);
+        this.cube.rotate('y', rotationY);
 
-        this.cube.accumulatedX = 0;
+        this.cube.accumulatedX *= (1- this.cube.smoothing * 0.8);
       }
     }
 
   // Function to get the height of a collided with object
   getCollisionHeight(objA){
-    const MAX_COLLISION_DISTANCE = 7.5;
     for (let obj of this.collidableObjects){
-      if (objA.name === obj.name) continue;
-
-      // Quick distance check to skip far objects
-      const dx = obj.model.position[0] - objA.model.position[0];
-      const dy = obj.model.position[1] - objA.model.position[1];
-      const dz = obj.model.position[2] - objA.model.position[2];
-      const distSq = dx*dx + dy*dy + dz*dz;
-      if (distSq > MAX_COLLISION_DISTANCE * MAX_COLLISION_DISTANCE) continue;
-
       if (this.checkCollisionBetween(objA, obj)){
         return obj.model.position[1] + obj.collider.halfsize[1]; // return the sum of the collided objects height and its current position at y
       }
@@ -431,6 +428,77 @@ class Game {
 
   }
 
+  evilMovement(object){
+      // check if player has reached min height
+      if (object.model.position[1] < 1){
+        return
+      }
+        // enemy max speed
+        let maxVelocityX = 0.01;
+        let maxVelocityY = 0.01;
+
+        // check which direction to move towards player
+        let evilMoveDirectionX = object.model.position[0] - this.custom1.model.position[0];
+        let evilMoveDirectionY = object.model.position[1] - this.custom1.model.position[1];
+
+        if (evilMoveDirectionX > 0){
+          // no change number is already positive
+        } else {
+          maxVelocityX = maxVelocityX * -1
+        }
+
+        if (evilMoveDirectionY > 0){
+          // no change number is already positive
+        } else {
+          maxVelocityY = maxVelocityY * -1
+        }
+        let tempMaxVelocityX = maxVelocityX;
+        let tempminVelocityY = maxVelocityY;
+
+        const msg = document.getElementById("collisionMessage");
+
+        // check if x & y are with (X) distance to begin attack
+        // upper and lower bounds for ranged attack
+        let xRangeMax = object.model.position[0] +1;
+        let xRangeMin = object.model.position[0] -1;
+
+        let yRangeMax = object.model.position[1] +1;
+        let yRangeMin = object.model.position[1] -1;        
+
+        if (xRangeMax > this.custom1.model.position[0] && this.custom1.model.position[0] > xRangeMin && yRangeMax > this.custom1.model.position[1] && this.custom1.model.position[1] > yRangeMin){
+          // within range, slow speed, charge attack
+
+
+          if (this.custom1.chargeLevel < 100){
+            msg.innerText = 'Enemy Charge Level: ' +this.custom1.chargeLevel+'/100';
+          msg.style.display = "block";
+          this.custom1.chargeLevel += 1;
+          } else {
+            msg.innerText = "YOU DIED"
+            setTimeout(() => {
+              object.model.position = vec3.fromValues(0.0,0.25,0.0);
+            }, 300);
+          }
+
+        } else {
+          msg.innerText = 'Enemy Charge Level: 0/100';
+            msg.style.display = "block";
+            this.custom1.chargeLevel = 0
+        }
+
+
+        const evilLocalMove = vec3.fromValues(maxVelocityX,0.0,maxVelocityY);
+        vec3.normalize(evilLocalMove,evilLocalMove);
+
+        if (this.custom1.model.position[0] != this.cube.model.position[0]){
+        this.custom1.model.position[0] += maxVelocityX;
+        }
+
+        if (this.custom1.model.position[1] != this.cube.model.position[1]){
+        this.custom1.model.position[1] += maxVelocityY;
+        }
+      }
+
   // Runs once every frame non stop after the scene loads
   onUpdate(deltaTime) {
     // Apply gravity if not grounded or if jumping
@@ -459,11 +527,13 @@ class Game {
       } else {
         // Up in the air (jumping, falling, etc)
         this.cube.isGrounded = false;
+        
       }
 
     } else {
       // No ground under us at all
       this.cube.isGrounded = false;
+      
     }
 
 
@@ -483,7 +553,7 @@ class Game {
     this.updateMovement(this.cube.pressedKeys); // Call movement for our object using the pressedKeys list that has been added to
     this.updateFirstPerson();
     this.updateCamera();
-    
     this.checkCollision(this.cube); // Call collision checks on our object
+    this.evilMovement(this.cube);
   }
 }

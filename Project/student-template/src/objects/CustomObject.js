@@ -131,5 +131,6 @@ class CustomObject {
     this.translate(this.initialTransform.position);
     this.model.rotation = this.initialTransform.rotation;
     this.initBuffers();
+    this.chargeLevel = 0;
   }
 }

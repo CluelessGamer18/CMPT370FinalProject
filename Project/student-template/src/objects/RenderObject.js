@@ -40,7 +40,7 @@ class RenderObject {
     this.jumpSpeed = 7.5; // The speed in which the y value goes up when jumping
     this.pressedKeys = {}; // A list to hold what keys are pressed at the same time
     this.smoothing = 0.1; // A smoothing value for rotations with mouse
-    this.mouseSpeedY = -0.01; // Set mouse speed values (can be adjusted to whatever is desired)
+    this.mouseSpeedY = -0.0008; // Set mouse speed values (can be adjusted to whatever is desired)
     this.mouseSpeedX = 0.0008;
     this.accumulatedX = 0; // A value used for mouse following
     this.accumulatedY = 0; // A value used for mouse following
